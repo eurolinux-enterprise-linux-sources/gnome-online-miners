@@ -1,5 +1,5 @@
 AC_INIT([GNOME Online Miners],
-        [3.22.0],
+        [3.26.0],
         [https://bugzilla.gnome.org/enter_bug.cgi?product=gnome-online-miners],
         [gnome-online-miners],
         [https://wiki.gnome.org/Projects/GnomeOnlineMiners])
@@ -38,7 +38,7 @@ PKG_CHECK_MODULES(GIO, [gio-2.0 gio-unix-2.0])
 PKG_CHECK_MODULES(GOA, [goa-1.0 >= $GOA_MIN_VERSION])
 AC_DEFINE([GOA_API_IS_SUBJECT_TO_CHANGE], [], [We are aware that GOA's API can change])
 
-PKG_CHECK_MODULES(TRACKER, [tracker-miner-1.0 tracker-sparql-1.0])
+PKG_CHECK_MODULES(TRACKER, [tracker-miner-2.0 tracker-sparql-2.0])
 
 # Facebook
 AC_ARG_ENABLE([facebook], [AS_HELP_STRING([--enable-facebook], [Enable Facebook miner])], [], [enable_facebook=yes])

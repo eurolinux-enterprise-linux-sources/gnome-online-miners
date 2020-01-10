@@ -21,7 +21,7 @@ If you have problems, you may need to regenerate the build system entirely.
 To do so, use the procedure documented by the package, typically 'autoreconf'.])])
 
 # ===========================================================================
-#   http://www.gnu.org/software/autoconf-archive/ax_check_enable_debug.html
+#  https://www.gnu.org/software/autoconf-archive/ax_check_enable_debug.html
 # ===========================================================================
 #
 # SYNOPSIS
@@ -64,7 +64,7 @@ To do so, use the procedure documented by the package, typically 'autoreconf'.])
 #   permitted in any medium without royalty provided the copyright notice
 #   and this notice are preserved.
 
-#serial 5
+#serial 8
 
 AC_DEFUN([AX_CHECK_ENABLE_DEBUG],[
     AC_BEFORE([$0],[AC_PROG_CC])dnl
@@ -87,8 +87,8 @@ AC_DEFUN([AX_CHECK_ENABLE_DEBUG],[
     m4_define(ax_disable_debug_vars,[m4_normalize(ifelse([$3],,[NDEBUG],[$3]))])
 
     AC_ARG_ENABLE(debug,
-	[AS_HELP_STRING([--enable-debug=]@<:@yes/info/profile/no@:>@,[compile with debugging])],
-	[],enable_debug=$ax_enable_debug_default)
+        [AS_HELP_STRING([--enable-debug=]@<:@yes/info/profile/no@:>@,[compile with debugging])],
+        [],enable_debug=$ax_enable_debug_default)
 
     # empty mean debug yes
     AS_IF([test "x$enable_debug" = "x"],
@@ -97,44 +97,44 @@ AC_DEFUN([AX_CHECK_ENABLE_DEBUG],[
     # case of debug
     AS_CASE([$enable_debug],
       [yes],[
-	AC_MSG_RESULT(yes)
-	CFLAGS="${CFLAGS} -g -O0"
-	CXXFLAGS="${CXXFLAGS} -g -O0"
-	FFLAGS="${FFLAGS} -g -O0"
-	FCFLAGS="${FCFLAGS} -g -O0"
-	OBJCFLAGS="${OBJCFLAGS} -g -O0"
+        AC_MSG_RESULT(yes)
+        CFLAGS="${CFLAGS} -g -O0"
+        CXXFLAGS="${CXXFLAGS} -g -O0"
+        FFLAGS="${FFLAGS} -g -O0"
+        FCFLAGS="${FCFLAGS} -g -O0"
+        OBJCFLAGS="${OBJCFLAGS} -g -O0"
       ],
       [info],[
-	AC_MSG_RESULT(info)
-	CFLAGS="${CFLAGS} -g"
-	CXXFLAGS="${CXXFLAGS} -g"
-	FFLAGS="${FFLAGS} -g"
-	FCFLAGS="${FCFLAGS} -g"
-	OBJCFLAGS="${OBJCFLAGS} -g"
+        AC_MSG_RESULT(info)
+        CFLAGS="${CFLAGS} -g"
+        CXXFLAGS="${CXXFLAGS} -g"
+        FFLAGS="${FFLAGS} -g"
+        FCFLAGS="${FCFLAGS} -g"
+        OBJCFLAGS="${OBJCFLAGS} -g"
       ],
       [profile],[
-	AC_MSG_RESULT(profile)
-	CFLAGS="${CFLAGS} -g -pg"
-	CXXFLAGS="${CXXFLAGS} -g -pg"
-	FFLAGS="${FFLAGS} -g -pg"
-	FCFLAGS="${FCFLAGS} -g -pg"
-	OBJCFLAGS="${OBJCFLAGS} -g -pg"
-	LDFLAGS="${LDFLAGS} -pg"
+        AC_MSG_RESULT(profile)
+        CFLAGS="${CFLAGS} -g -pg"
+        CXXFLAGS="${CXXFLAGS} -g -pg"
+        FFLAGS="${FFLAGS} -g -pg"
+        FCFLAGS="${FCFLAGS} -g -pg"
+        OBJCFLAGS="${OBJCFLAGS} -g -pg"
+        LDFLAGS="${LDFLAGS} -pg"
       ],
       [
-	AC_MSG_RESULT(no)
-	dnl Ensure AC_PROG_CC/CXX/F77/FC/OBJC will not enable debug flags
-	dnl by setting any unset environment flag variables
-	AS_IF([test "x${CFLAGS+set}" != "xset"],
-	  [CFLAGS=""])
-	AS_IF([test "x${CXXFLAGS+set}" != "xset"],
-	  [CXXFLAGS=""])
-	AS_IF([test "x${FFLAGS+set}" != "xset"],
-	  [FFLAGS=""])
-	AS_IF([test "x${FCFLAGS+set}" != "xset"],
-	  [FCFLAGS=""])
-	AS_IF([test "x${OBJCFLAGS+set}" != "xset"],
-	  [OBJCFLAGS=""])
+        AC_MSG_RESULT(no)
+        dnl Ensure AC_PROG_CC/CXX/F77/FC/OBJC will not enable debug flags
+        dnl by setting any unset environment flag variables
+        AS_IF([test "x${CFLAGS+set}" != "xset"],
+          [CFLAGS=""])
+        AS_IF([test "x${CXXFLAGS+set}" != "xset"],
+          [CXXFLAGS=""])
+        AS_IF([test "x${FFLAGS+set}" != "xset"],
+          [FFLAGS=""])
+        AS_IF([test "x${FCFLAGS+set}" != "xset"],
+          [FCFLAGS=""])
+        AS_IF([test "x${OBJCFLAGS+set}" != "xset"],
+          [OBJCFLAGS=""])
       ])
 
     dnl Define various variables if debugging is disabled.
@@ -364,7 +364,7 @@ eliminate use of --enable-iso-cxx.
 See: http://www.gnu.org/software/autoconf-archive/ax_compiler_flags.html#ax_compiler_flags]])
 
 dnl pkg.m4 - Macros to locate and utilise pkg-config.   -*- Autoconf -*-
-dnl serial 11 (pkg-config-0.29)
+dnl serial 11 (pkg-config-0.29.1)
 dnl
 dnl Copyright © 2004 Scott James Remnant <scott@netsplit.com>.
 dnl Copyright © 2012-2015 Dan Nicholson <dbn.lists@gmail.com>
@@ -406,7 +406,7 @@ dnl
 dnl See the "Since" comment for each macro you use to see what version
 dnl of the macros you require.
 m4_defun([PKG_PREREQ],
-[m4_define([PKG_MACROS_VERSION], [0.29])
+[m4_define([PKG_MACROS_VERSION], [0.29.1])
 m4_if(m4_version_compare(PKG_MACROS_VERSION, [$1]), -1,
     [m4_fatal([pkg.m4 version $1 or higher is required but ]PKG_MACROS_VERSION[ found])])
 ])dnl PKG_PREREQ
