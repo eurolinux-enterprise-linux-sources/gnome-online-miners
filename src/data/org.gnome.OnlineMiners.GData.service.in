@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.gnome.OnlineMiners.GData
+Exec=@libexecdir@/gom-gdata-miner

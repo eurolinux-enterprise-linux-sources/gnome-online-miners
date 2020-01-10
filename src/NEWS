@@ -1,0 +1,115 @@
+Overview of changes in 3.14.3
+=============================
+
+* Bugs fixed:
+ 748253 gdata: Treat the GDataEntry:id as an opaque string
+
+
+Overview of changes in 3.14.2
+=============================
+
+* Add build options to enable/disable each miner (747847)
+
+* Bugs fixed:
+ 740421 gdata: Skip PicasaWeb videos
+
+
+Overview of changes in 3.14.1
+=============================
+
+* Bugs fixed:
+ 740423 Wrong author shown for Google albums
+ 740869 facebook: Don't use the time as a fallback for the title
+
+
+Overview of changes in 3.14.0
+=============================
+
+* Bugs fixed:
+ 728912 data: add a DBus service file for org.gnome.OnlineMiners.MediaServer
+ 736407 media-server: Use a hyphen instead of underscore in provider type
+
+
+Overview of changes in 3.13.91
+==============================
+
+* Support PicasaWeb (728878)
+
+* Support DLNA media servers (728912)
+
+
+Overview of changes in 3.13.3
+=============================
+
+* Bugs fixed:
+ 727331 build: Bump minimum required GOA version to 3.7.3
+ 728878 src: Pass the content type to RefreshDB
+ 729398 build: Remove GNOME_COMMON_INIT
+ 731976 Use a gdbus-codegen-ed GDBusInterfaceSkeleton and GApplication
+
+
+Overview of changes in 3.11.90
+==============================
+
+* Bugs fixed:
+ build: support tracker 1.0
+
+
+Overview of changes in 3.11.5
+=============================
+
+* Bugs fixed:
+ 722525 Fix build failure on non-Linux systems
+
+
+Overview of changes in 3.11.4
+=============================
+
+* Bugs fixed:
+ 719729 facebook: Update the DB only for new and modified entries
+ 722278 miner-main: Lower the CPU and disk I/O scheduling and priority
+
+
+Overview of changes in 3.11.3
+=============================
+
+* Support Facebook (701499)
+
+* Bugs fixed:
+ 715086 build: support tracker 0.18
+
+
+Overview of changes in 3.11.2
+=============================
+
+* Bugs fixed:
+ 694003 gdata: Empty collections
+ 707142 owncloud: Fix typo
+ 707143 flickr: Wait for the GOA source to be added
+ 715026 owncloud: Regular files are missing
+
+
+Overview of changes in 3.9.90
+=============================
+
+* Support ownCloud (706158)
+
+* Bugs fixed:
+ 706126 miner-main: Fix and simplify reference counting
+ 706157 utils: Replace gom_filename_to_mime_type with g_content_type_guess
+
+
+Overview of changes in 3.9.5
+============================
+
+* Bugs fixed:
+ 703915 flickr: Fix hierarchy creation
+ 703917 flickr: Store the title as nie:title, not nfo:fileName
+
+
+Overview of changes in 3.9.4
+============================
+
+* First release after being split out from gnome-documents
+
+* Support Flickr (700897)
