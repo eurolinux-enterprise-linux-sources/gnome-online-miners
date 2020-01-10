@@ -35,9 +35,13 @@ G_DEFINE_TYPE (GomFacebookMiner, gom_facebook_miner, GOM_TYPE_MINER)
 
 static gboolean
 account_miner_job_process_photo (GomAccountMinerJob *job,
+                                 TrackerSparqlConnection *connection,
+                                 GHashTable *previous_resources,
+                                 const gchar *datasource_urn,
                                  GFBGraphPhoto *photo,
                                  const gchar *parent_resource_urn,
                                  const gchar *creator,
+                                 GCancellable *cancellable,
                                  GError **error)
 {
   GTimeVal new_mtime;
@@ -60,21 +64,21 @@ account_miner_job_process_photo (GomAccountMinerJob *job,
   identifier = g_strdup_printf ("facebook:%s", photo_id);
 
   /* remove from the list of the previous resources */
-  g_hash_table_remove (job->previous_resources, identifier);
+  g_hash_table_remove (previous_resources, identifier);
 
   resource = gom_tracker_sparql_connection_ensure_resource
-    (job->connection,
-     job->cancellable, error,
+    (connection,
+     cancellable, error,
      &resource_exists,
-     job->datasource_urn, identifier,
+     datasource_urn, identifier,
      "nfo:RemoteDataObject", class, NULL);
 
   if (*error != NULL)
     goto out;
 
-  gom_tracker_update_datasource (job->connection, job->datasource_urn,
+  gom_tracker_update_datasource (connection, datasource_urn,
                                  resource_exists, identifier, resource,
-                                 job->cancellable, error);
+                                 cancellable, error);
   if (*error != NULL)
     goto out;
 
@@ -84,9 +88,9 @@ account_miner_job_process_photo (GomAccountMinerJob *job,
                photo_updated_time);
   else
     {
-      mtime_changed = gom_tracker_update_mtime (job->connection, new_mtime.tv_sec,
+      mtime_changed = gom_tracker_update_mtime (connection, new_mtime.tv_sec,
                                                 resource_exists, identifier, resource,
-                                                job->cancellable, error);
+                                                cancellable, error);
       if (*error != NULL)
         goto out;
 
@@ -99,53 +103,53 @@ account_miner_job_process_photo (GomAccountMinerJob *job,
 
   /* the resource changed - just set all the properties again */
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:url", photo_link);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:isPartOf", parent_resource_urn);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:mimeType", "image/jpeg");
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:title", photo_name);
 
   if (*error != NULL)
     goto out;
 
   contact_resource = gom_tracker_utils_ensure_contact_resource
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, creator);
+    (connection,
+     cancellable, error,
+     datasource_urn, creator);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nco:creator", contact_resource);
 
   g_free (contact_resource);
@@ -153,9 +157,9 @@ account_miner_job_process_photo (GomAccountMinerJob *job,
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:contentCreated", photo_created_time);
 
   if (*error != NULL)
@@ -176,8 +180,12 @@ account_miner_job_process_photo (GomAccountMinerJob *job,
  */
 static gboolean
 account_miner_job_process_album (GomAccountMinerJob *job,
+                                 TrackerSparqlConnection *connection,
+                                 GHashTable *previous_resources,
+                                 const gchar *datasource_urn,
                                  GFBGraphAlbum *album,
                                  const gchar *creator,
+                                 GCancellable *cancellable,
                                  GError **error)
 {
   const gchar *album_id;
@@ -204,22 +212,22 @@ account_miner_job_process_album (GomAccountMinerJob *job,
   identifier = g_strdup_printf ("photos:collection:facebook:%s", album_id);
 
   /* remove from the list of the previous resources */
-  g_hash_table_remove (job->previous_resources, identifier);
+  g_hash_table_remove (previous_resources, identifier);
 
   resource = gom_tracker_sparql_connection_ensure_resource
-    (job->connection,
-     job->cancellable, error,
+    (connection,
+     cancellable, error,
      &resource_exists,
-     job->datasource_urn, identifier,
+     datasource_urn, identifier,
      "nfo:RemoteDataObject", class,
      NULL);
 
   if (*error != NULL)
     goto out;
 
-  gom_tracker_update_datasource (job->connection, job->datasource_urn,
+  gom_tracker_update_datasource (connection, datasource_urn,
                                  resource_exists, identifier, resource,
-                                 job->cancellable, error);
+                                 cancellable, error);
 
   if (*error != NULL)
     goto out;
@@ -229,44 +237,44 @@ account_miner_job_process_album (GomAccountMinerJob *job,
    */
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:url", album_link);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:description", album_description);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:title", album_name);
 
   if (*error != NULL)
     goto out;
 
   contact_resource = gom_tracker_utils_ensure_contact_resource
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, creator);
+    (connection,
+     cancellable, error,
+     datasource_urn, creator);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nco:creator", contact_resource);
   g_free (contact_resource);
 
@@ -274,9 +282,9 @@ account_miner_job_process_album (GomAccountMinerJob *job,
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:contentCreated", album_created_time);
 
   if (*error != NULL)
@@ -295,7 +303,15 @@ account_miner_job_process_album (GomAccountMinerJob *job,
       GError *local_error = NULL;
       GFBGraphPhoto *photo = GFBGRAPH_PHOTO (l->data);
 
-      account_miner_job_process_photo (job, photo, resource, creator, &local_error);
+      account_miner_job_process_photo (job,
+                                       connection,
+                                       previous_resources,
+                                       datasource_urn,
+                                       photo,
+                                       resource,
+                                       creator,
+                                       cancellable,
+                                       &local_error);
       if (local_error != NULL)
         {
           const gchar *photo_id;
@@ -320,6 +336,10 @@ account_miner_job_process_album (GomAccountMinerJob *job,
 
 static void
 query_facebook (GomAccountMinerJob *job,
+                TrackerSparqlConnection *connection,
+                GHashTable *previous_resources,
+                const gchar *datasource_urn,
+                GCancellable *cancellable,
                 GError **error)
 {
   GFBGraphAuthorizer *authorizer;
@@ -354,7 +374,14 @@ query_facebook (GomAccountMinerJob *job,
     {
       GFBGraphAlbum *album = GFBGRAPH_ALBUM (l->data);
 
-      account_miner_job_process_album (job, album, me_name, &local_error);
+      account_miner_job_process_album (job,
+                                       connection,
+                                       previous_resources,
+                                       datasource_urn,
+                                       album,
+                                       me_name,
+                                       cancellable,
+                                       &local_error);
       if (local_error != NULL)
         {
           const gchar *album_id;

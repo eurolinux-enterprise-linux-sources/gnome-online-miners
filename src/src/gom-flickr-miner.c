@@ -48,13 +48,22 @@ typedef struct {
 
 typedef struct {
   FlickrEntry *parent_entry;
+  GCancellable *cancellable;
+  GHashTable *previous_resources;
   GMainLoop *loop;
   GomAccountMinerJob *job;
   GrlSource *source;
+  TrackerSparqlConnection *connection;
+  const gchar *datasource_urn;
   const gchar *source_id;
 } SyncData;
 
-static void account_miner_job_browse_container (GomAccountMinerJob *job, FlickrEntry *entry);
+static void account_miner_job_browse_container (GomAccountMinerJob *job,
+                                                TrackerSparqlConnection *connection,
+                                                GHashTable *previous_resources,
+                                                const gchar *datasource_urn,
+                                                FlickrEntry *entry,
+                                                GCancellable *cancellable);
 
 static FlickrEntry *
 create_entry (GrlMedia *media, GrlMedia *parent)
@@ -88,15 +97,19 @@ get_grl_options (GrlSource *source)
 
   g_return_val_if_fail (opts != NULL, NULL);
 
-  grl_operation_options_set_flags (opts, GRL_RESOLVE_FAST_ONLY);
+  grl_operation_options_set_resolution_flags (opts, GRL_RESOLVE_FAST_ONLY);
 
   return opts;
 }
 
 static gboolean
 account_miner_job_process_entry (GomAccountMinerJob *job,
+                                 TrackerSparqlConnection *connection,
+                                 GHashTable *previous_resources,
+                                 const gchar *datasource_urn,
                                  OpType op_type,
                                  FlickrEntry *entry,
+                                 GCancellable *cancellable,
                                  GError **error)
 {
   GDateTime *created_time, *modification_date;
@@ -109,36 +122,36 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
   gboolean resource_exists, mtime_changed;
   gint64 new_mtime;
 
-  if (op_type == OP_CREATE_HIEARCHY && entry->parent == NULL && !GRL_IS_MEDIA_BOX (entry->media))
+  if (op_type == OP_CREATE_HIEARCHY && entry->parent == NULL && !grl_media_is_container (entry->media))
     return TRUE;
 
   id = grl_media_get_id (entry->media);
   identifier = g_strdup_printf ("%sflickr:%s",
-                                GRL_IS_MEDIA_BOX (entry->media) ?
+                                grl_media_is_container (entry->media) ?
                                 "photos:collection:" : "",
                                 id);
 
   /* remove from the list of the previous resources */
-  g_hash_table_remove (job->previous_resources, identifier);
+  g_hash_table_remove (previous_resources, identifier);
 
-  if (GRL_IS_MEDIA_BOX (entry->media))
+  if (grl_media_is_container (entry->media))
     class = "nfo:DataContainer";
   else
     class = "nmm:Photo";
 
   resource = gom_tracker_sparql_connection_ensure_resource
-    (job->connection,
-     job->cancellable, error,
+    (connection,
+     cancellable, error,
      &resource_exists,
-     job->datasource_urn, identifier,
+     datasource_urn, identifier,
      "nfo:RemoteDataObject", class, NULL);
 
   if (*error != NULL)
     goto out;
 
-  gom_tracker_update_datasource (job->connection, job->datasource_urn,
+  gom_tracker_update_datasource (connection, datasource_urn,
                                  resource_exists, identifier, resource,
-                                 job->cancellable, error);
+                                 cancellable, error);
 
   if (*error != NULL)
     goto out;
@@ -151,9 +164,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
       parent_identifier = g_strconcat ("photos:collection:flickr:",
                                         grl_media_get_id (entry->parent) , NULL);
       parent_resource_urn = gom_tracker_sparql_connection_ensure_resource
-        (job->connection, job->cancellable, error,
+        (connection, cancellable, error,
          NULL,
-         job->datasource_urn, parent_identifier,
+         datasource_urn, parent_identifier,
          "nfo:RemoteDataObject", "nfo:DataContainer", NULL);
       g_free (parent_identifier);
 
@@ -161,9 +174,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
         goto out;
 
       gom_tracker_sparql_connection_insert_or_replace_triple
-        (job->connection,
-         job->cancellable, error,
-         job->datasource_urn, resource,
+        (connection,
+         cancellable, error,
+         datasource_urn, resource,
          "nie:isPartOf", parent_resource_urn);
       g_free (parent_resource_urn);
 
@@ -172,9 +185,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
     }
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:title", grl_media_get_title (entry->media));
 
   if (*error != NULL)
@@ -188,9 +201,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
    */
   created_time = modification_date = grl_media_get_creation_date (entry->media);
   new_mtime = g_date_time_to_unix (modification_date);
-  mtime_changed = gom_tracker_update_mtime (job->connection, new_mtime,
+  mtime_changed = gom_tracker_update_mtime (connection, new_mtime,
                                             resource_exists, identifier, resource,
-                                            job->cancellable, error);
+                                            cancellable, error);
 
   if (*error != NULL)
     goto out;
@@ -206,9 +219,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
     {
       date = gom_iso8601_from_timestamp (g_date_time_to_unix (created_time));
       gom_tracker_sparql_connection_insert_or_replace_triple
-        (job->connection,
-         job->cancellable, error,
-         job->datasource_urn, resource,
+        (connection,
+         cancellable, error,
+         datasource_urn, resource,
          "nie:contentCreated", date);
       g_free (date);
     }
@@ -218,18 +231,18 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
 
   url = grl_media_get_url (entry->media);
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:url", url);
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:description", grl_media_get_description (entry->media));
 
   if (*error != NULL)
@@ -239,9 +252,9 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
   if (mime != NULL)
     {
       gom_tracker_sparql_connection_insert_or_replace_triple
-        (job->connection,
-         job->cancellable, error,
-         job->datasource_urn, resource,
+        (connection,
+         cancellable, error,
+         datasource_urn, resource,
          "nie:mimeType", mime);
       g_free (mime);
 
@@ -250,17 +263,17 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
     }
 
   contact_resource = gom_tracker_utils_ensure_contact_resource
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, grl_media_get_author (entry->media));
+    (connection,
+     cancellable, error,
+     datasource_urn, grl_media_get_author (entry->media));
 
   if (*error != NULL)
     goto out;
 
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nco:creator", contact_resource);
   g_free (contact_resource);
 
@@ -300,14 +313,21 @@ source_browse_cb (GrlSource *source,
       FlickrEntry *entry;
 
       entry = create_entry (media, data->parent_entry->media);
-      account_miner_job_process_entry (data->job, OP_CREATE_HIEARCHY, entry, &local_error);
+      account_miner_job_process_entry (data->job,
+                                       data->connection,
+                                       data->previous_resources,
+                                       data->datasource_urn,
+                                       OP_CREATE_HIEARCHY,
+                                       entry,
+                                       data->cancellable,
+                                       &local_error);
       if (local_error != NULL)
         {
           g_warning ("Unable to process entry %p: %s", media, local_error->message);
           g_error_free (local_error);
         }
 
-      if (GRL_IS_MEDIA_BOX (media))
+      if (grl_media_is_container (media))
         g_queue_push_tail (self->priv->boxes, entry);
       else
         free_entry (entry);
@@ -318,7 +338,12 @@ source_browse_cb (GrlSource *source,
 }
 
 static void
-account_miner_job_browse_container (GomAccountMinerJob *job, FlickrEntry *entry)
+account_miner_job_browse_container (GomAccountMinerJob *job,
+                                    TrackerSparqlConnection *connection,
+                                    GHashTable *previous_resources,
+                                    const gchar *datasource_urn,
+                                    FlickrEntry *entry,
+                                    GCancellable *cancellable)
 {
   GMainContext *context;
   GrlSource *source;
@@ -326,8 +351,12 @@ account_miner_job_browse_container (GomAccountMinerJob *job, FlickrEntry *entry)
   const GList *keys;
   SyncData data;
 
+  data.cancellable = cancellable;
+  data.connection = connection;
+  data.datasource_urn = datasource_urn;
   data.parent_entry = entry;
   data.job = job;
+  data.previous_resources = previous_resources;
 
   context = g_main_context_new ();
   g_main_context_push_thread_default (context);
@@ -374,7 +403,14 @@ source_search_cb (GrlSource *source,
       FlickrEntry *entry;
 
       entry = create_entry (media, NULL);
-      account_miner_job_process_entry (data->job, OP_FETCH_ALL, entry, &local_error);
+      account_miner_job_process_entry (data->job,
+                                       data->connection,
+                                       data->previous_resources,
+                                       data->datasource_urn,
+                                       OP_FETCH_ALL,
+                                       entry,
+                                       data->cancellable,
+                                       &local_error);
       if (local_error != NULL)
         {
           g_warning ("Unable to process entry %p: %s", media, local_error->message);
@@ -390,6 +426,10 @@ source_search_cb (GrlSource *source,
 
 static void
 query_flickr (GomAccountMinerJob *job,
+              TrackerSparqlConnection *connection,
+              GHashTable *previous_resources,
+              const gchar *datasource_urn,
+              GCancellable *cancellable,
               GError **error)
 {
   GomFlickrMiner *self = GOM_FLICKR_MINER (job->miner);
@@ -417,7 +457,11 @@ query_flickr (GomAccountMinerJob *job,
    * each photo to any set that it might be a part of.
    */
 
+  data.cancellable = cancellable;
+  data.connection = connection;
+  data.datasource_urn = datasource_urn;
   data.job = job;
+  data.previous_resources = previous_resources;
   context = g_main_context_new ();
   g_main_context_push_thread_default (context);
   data.loop = g_main_loop_new (context, FALSE);
@@ -433,13 +477,13 @@ query_flickr (GomAccountMinerJob *job,
   g_main_context_unref (context);
 
   entry = create_entry (NULL, NULL);
-  account_miner_job_browse_container (job, entry);
+  account_miner_job_browse_container (job, connection, previous_resources, datasource_urn, entry, cancellable);
   free_entry (entry);
 
   while (!g_queue_is_empty (priv->boxes))
     {
       entry = (FlickrEntry *) g_queue_pop_head (priv->boxes);
-      account_miner_job_browse_container (job, entry);
+      account_miner_job_browse_container (job, connection, previous_resources, datasource_urn, entry, cancellable);
       free_entry (entry);
     }
 }
@@ -551,8 +595,9 @@ gom_flickr_miner_class_init (GomFlickrMinerClass *klass)
 
   grl_init (NULL, NULL);
   registry = grl_registry_get_default ();
+  grl_registry_load_all_plugins (registry, FALSE, &error);
 
-  if (!grl_registry_load_plugin_by_id (registry, "grl-flickr", &error))
+  if (error != NULL || !grl_registry_activate_plugin_by_id (registry, "grl-flickr", &error))
     {
       g_error ("%s", error->message);
       g_error_free (error);

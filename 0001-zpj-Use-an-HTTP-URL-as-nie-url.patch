@@ -1,0 +1,64 @@
+From 4e095d31acb53b7f393dc7a5ecdbd427f2529a68 Mon Sep 17 00:00:00 2001
+From: Debarshi Ray <debarshir@gnome.org>
+Date: Mon, 27 Mar 2017 18:36:30 +0200
+Subject: [PATCH] zpj: Use an HTTP URL as nie:url
+
+The nao:identifier value is not a valid nie:url. The identifier has the
+format "windows-live:skydrive:<id>", and is not a GVfs supported URI.
+This is a problem because the nie:url is used to locate the path to
+the entry's thumbnail in the desktop's thumbnail cache. Running
+g_file_query_info (file, G_FILE_ATTRIBUTE_THUMBNAIL_PATH, ...) on such
+a URI will fail. Therefore we use a fake OneDrive-namespaced URI that
+GVfs understands.
+
+Force a full reindex of OneDrive resources for existing users.
+---
+ src/gom-zpj-miner.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/gom-zpj-miner.c b/src/gom-zpj-miner.c
+index 6dff947ada9d..da54c2a53be5 100644
+--- a/src/gom-zpj-miner.c
++++ b/src/gom-zpj-miner.c
+@@ -46,6 +46,7 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
+   gchar *contact_resource;
+   gchar *resource = NULL;
+   gchar *date, *identifier;
++  gchar *url = NULL;
+   const gchar *class = NULL, *id, *name;
+   gboolean resource_exists, mtime_changed;
+   gint64 new_mtime;
+@@ -99,11 +100,12 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
+     goto out;
+ 
+   /* the resource changed - just set all the properties again */
++  url = g_strconcat ("http://onedrive.com/", id, NULL);
+   gom_tracker_sparql_connection_insert_or_replace_triple
+     (connection,
+      cancellable, error,
+      datasource_urn, resource,
+-     "nie:url", identifier);
++     "nie:url", url);
+ 
+   if (*error != NULL)
+     goto out;
+@@ -202,6 +204,7 @@ account_miner_job_process_entry (GomAccountMinerJob *job,
+  out:
+   g_free (resource);
+   g_free (identifier);
++  g_free (url);
+ 
+   if (*error != NULL)
+     return FALSE;
+@@ -324,7 +327,7 @@ gom_zpj_miner_class_init (GomZpjMinerClass *klass)
+ 
+   miner_class->goa_provider_type = "windows_live";
+   miner_class->miner_identifier = MINER_IDENTIFIER;
+-  miner_class->version = 1;
++  miner_class->version = 2;
+ 
+   miner_class->create_services = create_services;
+   miner_class->query = query_zpj;
+-- 
+2.9.3
+

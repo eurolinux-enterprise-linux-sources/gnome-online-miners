@@ -1,17 +1,42 @@
-Overview of changes in 3.14.3
+Overview of changes in 3.22.0
+=============================
+
+* None
+
+
+Overview of changes in 3.21.91
+==============================
+
+* Bugs fixed:
+ 770889 Port to GTask & GThreadPool, and fix some associated problems
+ 770899 Support inserting a single shared item
+
+
+Overview of changes in 3.20.1
 =============================
 
 * Bugs fixed:
- 748253 gdata: Treat the GDataEntry:id as an opaque string
+ 770656 gdata: Query Google Drive in smaller chunks instead of getting
+        everything all at once
+ 770658 gdata: Too many nfo:Equipment objects are needlessly created
 
 
-Overview of changes in 3.14.2
+Overview of changes in 3.20.0
 =============================
+
+* None
+
+
+Overview of changes in 3.19.90
+==============================
 
 * Add build options to enable/disable each miner (747847)
 
 * Bugs fixed:
+ 728912 media-server: Support non-searchable DLNA servers
  740421 gdata: Skip PicasaWeb videos
+ 741162 media-server: Store photo names without extensions
+ 748253 gdata: Treat the GDataEntry:id as an opaque string
 
 
 Overview of changes in 3.14.1

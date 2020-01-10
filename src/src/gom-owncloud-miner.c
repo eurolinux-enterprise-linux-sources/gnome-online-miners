@@ -51,9 +51,13 @@ typedef struct {
 
 static gboolean
 account_miner_job_process_file (GomAccountMinerJob *job,
+                                TrackerSparqlConnection *connection,
+                                GHashTable *previous_resources,
+                                const gchar *datasource_urn,
                                 GFile *file,
                                 GFileInfo *info,
                                 GFile *parent,
+                                GCancellable *cancellable,
                                 GError **error)
 {
   GChecksum *checksum = NULL;
@@ -81,7 +85,7 @@ account_miner_job_process_file (GomAccountMinerJob *job,
   g_checksum_reset (checksum);
 
   /* remove from the list of the previous resources */
-  g_hash_table_remove (job->previous_resources, identifier);
+  g_hash_table_remove (previous_resources, identifier);
 
   name = g_file_info_get_name (info);
   if (type == G_FILE_TYPE_REGULAR)
@@ -93,18 +97,18 @@ account_miner_job_process_file (GomAccountMinerJob *job,
     goto out;
 
   resource = gom_tracker_sparql_connection_ensure_resource
-    (job->connection,
-     job->cancellable, error,
+    (connection,
+     cancellable, error,
      &resource_exists,
-     job->datasource_urn, identifier,
+     datasource_urn, identifier,
      "nfo:RemoteDataObject", class, NULL);
 
   if (*error != NULL)
     goto out;
 
-  gom_tracker_update_datasource (job->connection, job->datasource_urn,
+  gom_tracker_update_datasource (connection, datasource_urn,
                                  resource_exists, identifier, resource,
-                                 job->cancellable, error);
+                                 cancellable, error);
 
   if (*error != NULL)
     goto out;
@@ -112,9 +116,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
   g_file_info_get_modification_time (info, &tv);
   modification_time = g_date_time_new_from_timeval_local (&tv);
   new_mtime = g_date_time_to_unix (modification_time);
-  mtime_changed = gom_tracker_update_mtime (job->connection, new_mtime,
+  mtime_changed = gom_tracker_update_mtime (connection, new_mtime,
                                             resource_exists, identifier, resource,
-                                            job->cancellable, error);
+                                            cancellable, error);
 
   if (*error != NULL)
     goto out;
@@ -127,9 +131,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
 
   /* the resource changed - just set all the properties again */
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nie:url", uri);
 
   if (*error != NULL)
@@ -150,9 +154,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
           parent_id = g_checksum_get_string (checksum);
           parent_identifier = g_strconcat ("gd:collection:owncloud:", parent_id, NULL);
           parent_resource_urn = gom_tracker_sparql_connection_ensure_resource
-            (job->connection, job->cancellable, error,
+            (connection, cancellable, error,
              NULL,
-             job->datasource_urn, parent_identifier,
+             datasource_urn, parent_identifier,
              "nfo:RemoteDataObject", "nfo:DataContainer", NULL);
           g_checksum_reset (checksum);
           g_free (parent_identifier);
@@ -162,9 +166,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
             goto out;
 
           gom_tracker_sparql_connection_insert_or_replace_triple
-            (job->connection,
-             job->cancellable, error,
-             job->datasource_urn, resource,
+            (connection,
+             cancellable, error,
+             datasource_urn, resource,
              "nie:isPartOf", parent_resource_urn);
           g_free (parent_resource_urn);
 
@@ -176,9 +180,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
       if (mime != NULL)
         {
           gom_tracker_sparql_connection_insert_or_replace_triple
-            (job->connection,
-             job->cancellable, error,
-             job->datasource_urn, resource,
+            (connection,
+             cancellable, error,
+             datasource_urn, resource,
              "nie:mimeType", mime);
 
           if (*error != NULL)
@@ -188,9 +192,9 @@ account_miner_job_process_file (GomAccountMinerJob *job,
 
   display_name = g_file_info_get_display_name (info);
   gom_tracker_sparql_connection_insert_or_replace_triple
-    (job->connection,
-     job->cancellable, error,
-     job->datasource_urn, resource,
+    (connection,
+     cancellable, error,
+     datasource_urn, resource,
      "nfo:fileName", display_name);
 
   if (*error != NULL)
@@ -211,8 +215,12 @@ account_miner_job_process_file (GomAccountMinerJob *job,
 
 static void
 account_miner_job_traverse_dir (GomAccountMinerJob *job,
+                                TrackerSparqlConnection *connection,
+                                GHashTable *previous_resources,
+                                const gchar *datasource_urn,
                                 GFile *dir,
                                 gboolean is_root,
+                                GCancellable *cancellable,
                                 GError **error)
 {
   GError *local_error = NULL;
@@ -224,12 +232,12 @@ account_miner_job_traverse_dir (GomAccountMinerJob *job,
   enumerator = g_file_enumerate_children (dir,
                                           FILE_ATTRIBUTES,
                                           G_FILE_QUERY_INFO_NONE,
-                                          job->cancellable,
+                                          cancellable,
                                           &local_error);
   if (local_error != NULL)
     goto out;
 
-  while ((info = g_file_enumerator_next_file (enumerator, job->cancellable, &local_error)) != NULL)
+  while ((info = g_file_enumerator_next_file (enumerator, cancellable, &local_error)) != NULL)
     {
       GFile *child;
       GFileType type;
@@ -242,7 +250,15 @@ account_miner_job_traverse_dir (GomAccountMinerJob *job,
 
       if (type == G_FILE_TYPE_REGULAR || type == G_FILE_TYPE_DIRECTORY)
         {
-          account_miner_job_process_file (job, child, info, is_root ? NULL : dir, &local_error);
+          account_miner_job_process_file (job,
+                                          connection,
+                                          previous_resources,
+                                          datasource_urn,
+                                          child,
+                                          info,
+                                          is_root ? NULL : dir,
+                                          cancellable,
+                                          &local_error);
           if (local_error != NULL)
             {
               uri = g_file_get_uri (child);
@@ -254,7 +270,14 @@ account_miner_job_traverse_dir (GomAccountMinerJob *job,
 
       if (type == G_FILE_TYPE_DIRECTORY)
         {
-          account_miner_job_traverse_dir (job, child, FALSE, &local_error);
+          account_miner_job_traverse_dir (job,
+                                          connection,
+                                          previous_resources,
+                                          datasource_urn,
+                                          child,
+                                          FALSE,
+                                          cancellable,
+                                          &local_error);
           if (local_error != NULL)
             {
               uri = g_file_get_uri (child);
@@ -333,6 +356,10 @@ volume_mount_cb (GObject *source_object, GAsyncResult *res, gpointer user_data)
 
 static void
 query_owncloud (GomAccountMinerJob *job,
+                TrackerSparqlConnection *connection,
+                GHashTable *previous_resources,
+                const gchar *datasource_urn,
+                GCancellable *cancellable,
                 GError **error)
 {
   GomOwncloudMiner *self = GOM_OWNCLOUD_MINER (job->miner);
@@ -395,7 +422,7 @@ query_owncloud (GomAccountMinerJob *job,
       g_main_context_push_thread_default (context);
       data.loop = g_main_loop_new (context, FALSE);
 
-      g_volume_mount (volume, G_MOUNT_MOUNT_NONE, NULL, job->cancellable, volume_mount_cb, &data);
+      g_volume_mount (volume, G_MOUNT_MOUNT_NONE, NULL, cancellable, volume_mount_cb, &data);
       g_main_loop_run (data.loop);
 
       g_main_loop_unref (data.loop);
@@ -409,7 +436,7 @@ query_owncloud (GomAccountMinerJob *job,
     }
 
   root = g_mount_get_root (mount);
-  account_miner_job_traverse_dir (job, root, TRUE, error);
+  account_miner_job_traverse_dir (job, connection, previous_resources, datasource_urn, root, TRUE, cancellable, error);
 
   g_object_unref (root);
   g_object_unref (mount);

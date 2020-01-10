@@ -3,13 +3,16 @@
 %global __requires_exclude ^(%{_privatelibs})$
 
 Name:           gnome-online-miners
-Version:        3.14.3
-Release:        1%{?dist}
+Version:        3.22.0
+Release:        2%{?dist}
 Summary:        Crawls through your online content
 
-License:        GPLv2+
+License:        GPLv2+ and LGPLv2+ and MIT
 URL:            https://wiki.gnome.org/Projects/GnomeOnlineMiners
-Source0:        http://download.gnome.org/sources/%{name}/3.14/%{name}-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/3.22/%{name}-%{version}.tar.xz
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=985887
+Patch0:         0001-zpj-Use-an-HTTP-URL-as-nie-url.patch
 
 BuildRequires:  glib2-devel >= 2.35.1
 BuildRequires:  gnome-online-accounts-devel >= 3.8.0
@@ -17,6 +20,7 @@ BuildRequires:  libgdata-devel >= 0.15.2
 BuildRequires:  libzapojit-devel >= 0.0.2
 BuildRequires:  pkgconfig
 BuildRequires:  tracker-devel >= 0.17.2
+
 Requires:       dbus
 Requires:       gvfs >= 1.18.3
 
@@ -28,6 +32,7 @@ and ownCloud.
 
 %prep
 %setup -q
+%patch0 -p1
 
 
 %build
@@ -42,7 +47,7 @@ make %{?_smp_mflags}
 
 
 %install
-make install INSTALL="%{__install} -p" DESTDIR=$RPM_BUILD_ROOT
+%make_install
 find $RPM_BUILD_ROOT -name '*.la' -delete
 
 # Use %%doc instead.
@@ -53,8 +58,8 @@ rm -f $RPM_BUILD_ROOT%{_datadir}/dbus-1/services/org.gnome.OnlineMiners.Flickr.s
 rm -f $RPM_BUILD_ROOT%{_datadir}/dbus-1/services/org.gnome.OnlineMiners.MediaServer.service
 
 %files
+%license COPYING
 %doc AUTHORS
-%doc COPYING
 %doc NEWS
 %doc README
 %{_datadir}/dbus-1/services/org.gnome.OnlineMiners.GData.service
@@ -70,6 +75,14 @@ rm -f $RPM_BUILD_ROOT%{_datadir}/dbus-1/services/org.gnome.OnlineMiners.MediaSer
 
 
 %changelog
+* Mon Mar 27 2017 Debarshi Ray <rishi@fedoraproject.org> - 3.22.0-2
+- Fix the nie:url for OneDrive entries
+- Resolves: #985887, #1386954
+
+* Mon Sep 19 2016 Kalev Lember <klember@redhat.com> - 3.22.0-1
+- Update to 3.22.0
+- Resolves: #1386954
+
 * Tue May 05 2015 Debarshi Ray <rishi@fedoraproject.org> - 3.14.3-1
 - Update to 3.14.3
 Resolves: #1184195
